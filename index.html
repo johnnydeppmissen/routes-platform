@@ -189,6 +189,14 @@ textarea { resize: vertical; min-height: 72px; }
 .currency-row input { flex: 2; }
 .currency-row select { flex: 1; }
 
+/* ── Folders ── */
+.folder-section { margin-bottom: 24px; }
+.folder-header { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); margin-bottom: 8px; border-left: 4px solid var(--primary); }
+.folder-icon { font-size: 18px; }
+.folder-label { font-weight: 700; font-size: 15px; flex: 1; }
+.folder-count { background: var(--bg); color: var(--muted); font-size: 12px; font-weight: 600; padding: 2px 10px; border-radius: 99px; border: 1px solid var(--border); }
+.folder-empty { padding: 12px 16px; color: var(--muted); font-size: 13px; font-style: italic; }
+
 /* ── Responsive ── */
 @media (max-width: 700px) {
   .balance-grid { grid-template-columns: 1fr; }
@@ -575,31 +583,54 @@ function renderEvents() {
 
 function renderFiles() {
   const el = document.getElementById('tab-documents');
-  if (S.files.length === 0) {
+
+  const sections = [
+    { key: 'monthly_report', label: 'Monthly Reports', icon: '📊' },
+    { key: 'invoice',        label: 'Invoices',         icon: '🧾' },
+    { key: 'other',          label: 'Other Documents',  icon: '📎' }
+  ];
+
+  const byCategory = { monthly_report: [], invoice: [], other: [] };
+  for (const f of S.files) {
+    const cat = byCategory[f.fileCategory] ? f.fileCategory : 'other';
+    byCategory[cat].push(f);
+  }
+
+  const totalFiles = S.files.length;
+  if (totalFiles === 0) {
     el.innerHTML = `<div class="empty-state"><div class="icon">📁</div><p>No documents uploaded yet.<br>Upload invoices and monthly reports here.</p></div>`;
     return;
   }
 
-  const catLabel = { invoice: 'Invoice', monthly_report: 'Monthly Report', other: 'Document' };
-  el.innerHTML = `<div class="file-list">` + S.files.map(f => `
-    <div class="file-row">
-      <span class="file-icon">${fileIcon(f.mimeType)}</span>
-      <div class="file-info">
-        <div class="file-name">${f.originalName}</div>
-        <div class="file-meta">
-          ${catLabel[f.fileCategory] || 'Document'}
-          ${f.month ? ` · ${fmtMonth(f.month)}` : ''}
-          · ${fmtDate(f.date)}
-          · ${fmtSize(f.size)}
-          ${f.notes ? `· ${f.notes}` : ''}
+  el.innerHTML = sections.map(sec => {
+    const files = byCategory[sec.key];
+    return `
+      <div class="folder-section">
+        <div class="folder-header">
+          <span class="folder-icon">${sec.icon}</span>
+          <span class="folder-label">${sec.label}</span>
+          <span class="folder-count">${files.length}</span>
         </div>
-      </div>
-      <div class="file-actions">
-        <a href="/api/files/${f._id}" target="_blank" class="btn btn-outline btn-sm">View</a>
-        <a href="/api/files/${f._id}?dl=1" class="btn btn-outline btn-sm">⬇</a>
-        <button class="btn btn-danger btn-sm" onclick="deleteFile('${f._id}')">🗑</button>
-      </div>
-    </div>`).join('') + `</div>`;
+        ${files.length === 0
+          ? `<div class="folder-empty">No ${sec.label.toLowerCase()} yet</div>`
+          : `<div class="file-list">${files.map(f => `
+            <div class="file-row">
+              <span class="file-icon">${fileIcon(f.mimeType)}</span>
+              <div class="file-info">
+                <div class="file-name">${f.originalName}</div>
+                <div class="file-meta">
+                  ${f.month ? `${fmtMonth(f.month)} · ` : ''}${fmtDate(f.date)} · ${fmtSize(f.size)}${f.notes ? ` · ${f.notes}` : ''}
+                </div>
+              </div>
+              <div class="file-actions">
+                <a href="/api/files/${f._id}" target="_blank" class="btn btn-outline btn-sm">View</a>
+                <a href="/api/files/${f._id}?dl=1" class="btn btn-outline btn-sm">⬇</a>
+                <button class="btn btn-danger btn-sm" onclick="deleteFile('${f._id}')">Delete</button>
+              </div>
+            </div>`).join('')}</div>`
+        }
+      </div>`;
+  }).join('');
 }
 
 // ── Modal helpers ──────────────────────────────────────────────────────────
