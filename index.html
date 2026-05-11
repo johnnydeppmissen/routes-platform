@@ -1,0 +1,1040 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Routes Platform</title>
+<style>
+:root {
+  --bg: #f1f5f9;
+  --nav-bg: #0f172a;
+  --card: #ffffff;
+  --border: #e2e8f0;
+  --text: #1e293b;
+  --muted: #64748b;
+  --primary: #3b82f6;
+  --primary-dk: #2563eb;
+  --success: #16a34a;
+  --success-bg: #dcfce7;
+  --warning: #d97706;
+  --warning-bg: #fef3c7;
+  --danger: #dc2626;
+  --danger-bg: #fee2e2;
+  --gray: #94a3b8;
+  --radius: 8px;
+  --shadow: 0 1px 3px rgba(0,0,0,.1), 0 1px 2px rgba(0,0,0,.06);
+  --shadow-md: 0 4px 6px rgba(0,0,0,.07), 0 2px 4px rgba(0,0,0,.05);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); font-size: 14px; }
+.hidden { display: none !important; }
+button { cursor: pointer; font-family: inherit; font-size: 14px; }
+
+/* ── Login ── */
+#login-screen { min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+.login-box { background: var(--card); border-radius: 12px; padding: 40px; box-shadow: var(--shadow-md); width: 360px; text-align: center; }
+.login-box h1 { font-size: 22px; font-weight: 700; margin-bottom: 6px; }
+.login-box p { color: var(--muted); margin-bottom: 24px; font-size: 13px; }
+.login-box input { width: 100%; padding: 10px 14px; border: 1px solid var(--border); border-radius: var(--radius); font-size: 15px; margin-bottom: 12px; outline: none; }
+.login-box input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(59,130,246,.15); }
+.login-box .err { color: var(--danger); font-size: 13px; margin-top: 8px; }
+
+/* ── Nav ── */
+nav { background: var(--nav-bg); color: #fff; display: flex; align-items: center; padding: 0 24px; height: 56px; gap: 16px; position: sticky; top: 0; z-index: 10; }
+.nav-brand { font-weight: 700; font-size: 16px; color: #fff; flex: 1; }
+.nav-back { background: rgba(255,255,255,.1); border: none; color: #fff; padding: 6px 14px; border-radius: 6px; font-size: 13px; transition: background .15s; }
+.nav-back:hover { background: rgba(255,255,255,.2); }
+.nav-logout { background: none; border: 1px solid rgba(255,255,255,.25); color: rgba(255,255,255,.7); padding: 5px 12px; border-radius: 6px; font-size: 12px; }
+.nav-logout:hover { border-color: rgba(255,255,255,.5); color: #fff; }
+
+/* ── Page layout ── */
+.page { max-width: 1400px; margin: 0 auto; padding: 24px 20px; }
+
+/* ── Summary bar ── */
+.summary-bar { display: flex; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
+.summary-card { background: var(--card); border-radius: var(--radius); padding: 16px 20px; box-shadow: var(--shadow); flex: 1; min-width: 160px; }
+.summary-card .label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin-bottom: 6px; }
+.summary-card .value { font-size: 22px; font-weight: 700; }
+.summary-card .value.green { color: var(--success); }
+.summary-card .value.red { color: var(--danger); }
+.summary-card .value.orange { color: var(--warning); }
+
+/* ── Routes grid ── */
+.routes-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+
+/* ── Route card ── */
+.route-card { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); cursor: pointer; transition: box-shadow .15s, transform .1s; border-left: 4px solid var(--gray); overflow: hidden; }
+.route-card:hover { box-shadow: var(--shadow-md); transform: translateY(-1px); }
+.route-card.status-green { border-left-color: var(--success); }
+.route-card.status-yellow { border-left-color: var(--warning); }
+.route-card.status-red { border-left-color: var(--danger); }
+.route-card.status-gray { border-left-color: var(--gray); }
+.card-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px 10px; }
+.card-name { font-weight: 700; font-size: 15px; }
+.card-body { padding: 0 16px 14px; }
+.card-balance { font-size: 24px; font-weight: 700; margin: 4px 0; }
+.card-balance.na { color: var(--muted); font-size: 16px; }
+.card-row { display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: var(--muted); margin-top: 4px; }
+.card-row span { font-size: 13px; color: var(--text); font-weight: 500; }
+.card-divider { border: none; border-top: 1px solid var(--border); margin: 10px 0; }
+.card-reported { font-size: 12px; color: var(--muted); }
+.card-reported .val { color: var(--text); font-weight: 500; }
+.card-disc { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 99px; margin-left: 8px; }
+.card-disc.ok { background: var(--success-bg); color: var(--success); }
+.card-disc.diff { background: var(--danger-bg); color: var(--danger); }
+.card-footer { font-size: 11px; color: var(--muted); padding: 8px 16px; background: #f8fafc; border-top: 1px solid var(--border); }
+
+/* ── Badges ── */
+.badge { display: inline-block; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 99px; }
+.badge-active { background: #dbeafe; color: #1d4ed8; }
+.badge-occasional { background: #f1f5f9; color: #475569; }
+.badge-pending { background: #fef3c7; color: #92400e; }
+.badge-topup { background: #dbeafe; color: #1d4ed8; }
+.badge-report { background: #ffedd5; color: #9a3412; }
+.badge-balance { background: #f3e8ff; color: #6b21a8; }
+
+/* ── Route detail ── */
+.route-detail-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap; gap: 12px; }
+.route-detail-title { font-size: 26px; font-weight: 800; }
+.route-detail-meta { color: var(--muted); font-size: 13px; margin-top: 4px; display: flex; gap: 16px; flex-wrap: wrap; }
+.route-detail-meta span { display: flex; align-items: center; gap: 4px; }
+
+/* ── Balance summary boxes ── */
+.balance-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px; }
+.balance-box { background: var(--card); border-radius: var(--radius); padding: 18px 20px; box-shadow: var(--shadow); }
+.balance-box .label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin-bottom: 8px; }
+.balance-box .amount { font-size: 28px; font-weight: 800; }
+.balance-box .sub { font-size: 12px; color: var(--muted); margin-top: 4px; }
+.balance-box.disc-ok { border-top: 3px solid var(--success); }
+.balance-box.disc-warn { border-top: 3px solid var(--danger); }
+
+/* ── Action buttons ── */
+.action-bar { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 24px; }
+.btn { padding: 9px 18px; border-radius: var(--radius); font-weight: 600; border: none; transition: background .15s, transform .1s; }
+.btn:active { transform: scale(.98); }
+.btn-primary { background: var(--primary); color: #fff; }
+.btn-primary:hover { background: var(--primary-dk); }
+.btn-success { background: #15803d; color: #fff; }
+.btn-success:hover { background: #166534; }
+.btn-warning { background: #b45309; color: #fff; }
+.btn-warning:hover { background: #92400e; }
+.btn-purple { background: #7c3aed; color: #fff; }
+.btn-purple:hover { background: #6d28d9; }
+.btn-outline { background: #fff; border: 1px solid var(--border); color: var(--text); }
+.btn-outline:hover { background: #f8fafc; }
+.btn-sm { padding: 5px 12px; font-size: 12px; }
+.btn-danger { background: var(--danger); color: #fff; }
+.btn-danger:hover { background: #b91c1c; }
+.btn-settings { background: #fff; border: 1px solid var(--border); color: var(--text); padding: 8px 16px; border-radius: var(--radius); font-weight: 600; display: flex; align-items: center; gap: 6px; }
+.btn-settings:hover { background: #f8fafc; }
+
+/* ── Tabs ── */
+.tabs { display: flex; gap: 0; border-bottom: 2px solid var(--border); margin-bottom: 20px; }
+.tab-btn { background: none; border: none; padding: 10px 20px; font-weight: 600; color: var(--muted); border-bottom: 2px solid transparent; margin-bottom: -2px; transition: color .15s; }
+.tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); }
+.tab-btn:hover { color: var(--text); }
+
+/* ── Event list ── */
+.event-list { display: flex; flex-direction: column; gap: 8px; }
+.event-row { background: var(--card); border-radius: var(--radius); padding: 14px 16px; box-shadow: var(--shadow); display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 12px; }
+.event-main { }
+.event-desc { font-weight: 600; font-size: 14px; }
+.event-meta { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.event-balance { text-align: right; }
+.event-balance .bal-label { font-size: 11px; color: var(--muted); }
+.event-balance .bal-val { font-weight: 700; font-size: 15px; }
+.event-actions { display: flex; gap: 6px; }
+.btn-del { background: none; border: none; color: #cbd5e1; padding: 4px 6px; border-radius: 4px; font-size: 16px; line-height: 1; }
+.btn-del:hover { color: var(--danger); background: var(--danger-bg); }
+.disc-alert { background: #fef2f2; border: 1px solid #fecaca; border-radius: var(--radius); padding: 12px 16px; display: flex; align-items: center; gap: 10px; margin-bottom: 16px; font-size: 13px; }
+.disc-alert .icon { font-size: 20px; }
+
+/* ── File list ── */
+.file-list { display: flex; flex-direction: column; gap: 8px; }
+.file-row { background: var(--card); border-radius: var(--radius); padding: 14px 16px; box-shadow: var(--shadow); display: flex; align-items: center; gap: 12px; }
+.file-icon { font-size: 24px; flex-shrink: 0; }
+.file-info { flex: 1; }
+.file-name { font-weight: 600; font-size: 14px; }
+.file-meta { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.file-actions { display: flex; gap: 6px; }
+.empty-state { text-align: center; padding: 48px 20px; color: var(--muted); }
+.empty-state .icon { font-size: 48px; margin-bottom: 12px; }
+.empty-state p { font-size: 15px; }
+
+/* ── Modal ── */
+#modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.45); display: flex; align-items: center; justify-content: center; z-index: 100; padding: 20px; }
+.modal-box { background: var(--card); border-radius: 12px; width: 100%; max-width: 520px; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,.3); }
+.modal-header { display: flex; align-items: center; justify-content: space-between; padding: 20px 24px 0; }
+.modal-title { font-size: 18px; font-weight: 700; }
+.modal-close { background: none; border: none; font-size: 22px; color: var(--muted); line-height: 1; padding: 4px 8px; border-radius: 4px; }
+.modal-close:hover { background: var(--bg); color: var(--text); }
+.modal-body { padding: 20px 24px 24px; }
+
+/* ── Forms ── */
+.form-group { margin-bottom: 16px; }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+label { display: block; font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 5px; text-transform: uppercase; letter-spacing: .04em; }
+input[type=text], input[type=number], input[type=date], input[type=month], input[type=password], select, textarea {
+  width: 100%; padding: 9px 12px; border: 1px solid var(--border); border-radius: var(--radius); font-size: 14px; font-family: inherit; outline: none; background: #fff; color: var(--text);
+}
+input:focus, select:focus, textarea:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(59,130,246,.15); }
+textarea { resize: vertical; min-height: 72px; }
+.checkbox-group { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+.checkbox-item { display: flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer; }
+.checkbox-item input { width: auto; }
+.form-hint { font-size: 11px; color: var(--muted); margin-top: 4px; }
+.form-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border); }
+.form-error { color: var(--danger); font-size: 13px; margin-top: 8px; }
+.currency-row { display: flex; gap: 8px; }
+.currency-row input { flex: 2; }
+.currency-row select { flex: 1; }
+
+/* ── Responsive ── */
+@media (max-width: 700px) {
+  .balance-grid { grid-template-columns: 1fr; }
+  .form-row { grid-template-columns: 1fr; }
+  .route-detail-header { flex-direction: column; }
+  nav { padding: 0 14px; }
+  .page { padding: 16px 14px; }
+}
+</style>
+</head>
+<body>
+
+<!-- ── Login ───────────────────────────────────────────────────── -->
+<div id="login-screen">
+  <div class="login-box">
+    <h1>Routes Platform</h1>
+    <p>SMS Route Financial Overview</p>
+    <input type="password" id="login-pw" placeholder="Password" onkeydown="if(event.key==='Enter')doLogin()">
+    <button class="btn btn-primary" style="width:100%" onclick="doLogin()">Sign in</button>
+    <div id="login-err" class="err hidden"></div>
+  </div>
+</div>
+
+<!-- ── App ─────────────────────────────────────────────────────── -->
+<div id="app" class="hidden">
+  <nav>
+    <span class="nav-brand">📡 Routes Platform</span>
+    <button id="nav-back" class="nav-back hidden" onclick="showDashboard()">← Dashboard</button>
+    <button class="nav-logout" onclick="logout()">Log out</button>
+  </nav>
+
+  <!-- Dashboard -->
+  <div id="view-dashboard" class="page">
+    <div id="summary-bar" class="summary-bar"></div>
+    <div id="routes-grid" class="routes-grid"></div>
+  </div>
+
+  <!-- Route detail -->
+  <div id="view-route" class="page hidden">
+    <div id="route-header"></div>
+    <div id="balance-grid" class="balance-grid"></div>
+    <div id="action-bar" class="action-bar"></div>
+    <div class="tabs">
+      <button class="tab-btn active" id="tab-events-btn" onclick="switchTab('events')">📋 Events</button>
+      <button class="tab-btn" id="tab-docs-btn" onclick="switchTab('documents')">📁 Documents</button>
+    </div>
+    <div id="tab-events"></div>
+    <div id="tab-documents" class="hidden"></div>
+  </div>
+</div>
+
+<!-- ── Modal ────────────────────────────────────────────────────── -->
+<div id="modal-overlay" class="hidden" onclick="closeModalOutside(event)">
+  <div class="modal-box" onclick="event.stopPropagation()">
+    <div id="modal-content"></div>
+  </div>
+</div>
+
+<script>
+// ── State ──────────────────────────────────────────────────────────────────
+const S = {
+  token: localStorage.getItem('rp_token') || '',
+  routes: [],
+  route: null,
+  events: [],
+  files: [],
+  tab: 'events'
+};
+
+// ── Utilities ──────────────────────────────────────────────────────────────
+const eur = n => (n === null || n === undefined)
+  ? '—'
+  : new Intl.NumberFormat('en-DE', { style: 'currency', currency: 'EUR' }).format(n);
+
+const fmtDate = d => d
+  ? new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+  : '—';
+
+const fmtMonth = m => {
+  if (!m) return '—';
+  const [y, mo] = m.split('-');
+  return new Date(y, mo - 1).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+};
+
+const fmtSize = b => b < 1024 * 1024 ? `${(b/1024).toFixed(0)} KB` : `${(b/1024/1024).toFixed(1)} MB`;
+
+const fileIcon = mime => mime?.includes('pdf') ? '📄' : mime?.includes('image') ? '🖼️' : mime?.includes('excel') || mime?.includes('spreadsheet') ? '📊' : '📎';
+
+async function api(method, url, body) {
+  const opts = { method, headers: { 'x-auth-token': S.token } };
+  if (body) { opts.headers['Content-Type'] = 'application/json'; opts.body = JSON.stringify(body); }
+  const res = await fetch(url, opts);
+  if (res.status === 401) { logout(); throw new Error('Unauthorized'); }
+  return res.json();
+}
+
+async function apiForm(url, fd) {
+  const res = await fetch(url, { method: 'POST', headers: { 'x-auth-token': S.token }, body: fd });
+  if (res.status === 401) { logout(); throw new Error('Unauthorized'); }
+  return res.json();
+}
+
+function getStatus(route) {
+  if (!route.isSetup) return 'gray';
+  const avail = (route.calculatedBalance ?? 0) + (route.creditLimit ?? 0);
+  const hasDisc = route.discrepancy !== null && Math.abs(route.discrepancy) > 0.01;
+  if (hasDisc) return 'red';
+  if (avail <= 0) return 'red';
+  if (avail < 500) return 'yellow';
+  return 'green';
+}
+
+// ── Auth ───────────────────────────────────────────────────────────────────
+async function doLogin() {
+  const pw = document.getElementById('login-pw').value;
+  try {
+    const r = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: pw })
+    });
+    if (!r.ok) { document.getElementById('login-err').textContent = 'Wrong password'; document.getElementById('login-err').classList.remove('hidden'); return; }
+    const data = await r.json();
+    S.token = data.token;
+    localStorage.setItem('rp_token', data.token);
+    document.getElementById('login-screen').classList.add('hidden');
+    document.getElementById('app').classList.remove('hidden');
+    showDashboard();
+  } catch (e) {
+    document.getElementById('login-err').textContent = 'Connection error';
+    document.getElementById('login-err').classList.remove('hidden');
+  }
+}
+
+function logout() {
+  S.token = '';
+  localStorage.removeItem('rp_token');
+  document.getElementById('app').classList.add('hidden');
+  document.getElementById('login-screen').classList.remove('hidden');
+  document.getElementById('login-pw').value = '';
+}
+
+// ── Navigation ─────────────────────────────────────────────────────────────
+async function showDashboard() {
+  closeModal();
+  document.getElementById('nav-back').classList.add('hidden');
+  document.getElementById('view-dashboard').classList.remove('hidden');
+  document.getElementById('view-route').classList.add('hidden');
+  S.routes = await api('GET', '/api/routes');
+  renderDashboard();
+}
+
+async function showRoute(id) {
+  document.getElementById('nav-back').classList.remove('hidden');
+  document.getElementById('view-dashboard').classList.add('hidden');
+  document.getElementById('view-route').classList.remove('hidden');
+  S.route = await api('GET', `/api/routes/${id}`);
+  S.events = await api('GET', `/api/routes/${id}/events`);
+  S.files = await api('GET', `/api/routes/${id}/files`);
+  S.tab = 'events';
+  renderRouteDetail();
+}
+
+function switchTab(tab) {
+  S.tab = tab;
+  document.getElementById('tab-events-btn').classList.toggle('active', tab === 'events');
+  document.getElementById('tab-docs-btn').classList.toggle('active', tab === 'documents');
+  document.getElementById('tab-events').classList.toggle('hidden', tab !== 'events');
+  document.getElementById('tab-documents').classList.toggle('hidden', tab !== 'documents');
+}
+
+// ── Dashboard ──────────────────────────────────────────────────────────────
+function renderDashboard() {
+  const setup = S.routes.filter(r => r.isSetup);
+  const totalBal = setup.reduce((s, r) => s + (r.calculatedBalance ?? 0), 0);
+  const issues = S.routes.filter(r => r.isSetup && (getStatus(r) === 'red' || getStatus(r) === 'yellow')).length;
+  const discs = S.routes.filter(r => r.discrepancy !== null && Math.abs(r.discrepancy) > 0.01).length;
+  const pending = S.routes.filter(r => !r.isSetup).length;
+
+  document.getElementById('summary-bar').innerHTML = `
+    <div class="summary-card"><div class="label">Total Balance (EUR)</div><div class="value ${totalBal < 0 ? 'red' : 'green'}">${eur(Math.round(totalBal * 100) / 100)}</div></div>
+    <div class="summary-card"><div class="label">Routes</div><div class="value">${S.routes.length}</div></div>
+    <div class="summary-card"><div class="label">Needs Attention</div><div class="value ${issues > 0 ? 'orange' : ''}">${issues}</div></div>
+    <div class="summary-card"><div class="label">Discrepancies</div><div class="value ${discs > 0 ? 'red' : ''}">${discs}</div></div>
+    <div class="summary-card"><div class="label">Not Set Up</div><div class="value ${pending > 0 ? 'orange' : ''}">${pending}</div></div>
+  `;
+
+  document.getElementById('routes-grid').innerHTML = S.routes.map(r => routeCard(r)).join('');
+}
+
+function routeCard(r) {
+  const status = getStatus(r);
+  const avail = r.isSetup ? (r.calculatedBalance ?? 0) + (r.creditLimit ?? 0) : null;
+  const hasDisc = r.discrepancy !== null && Math.abs(r.discrepancy) > 0.01;
+
+  let discHtml = '';
+  if (r.isSetup && r.lastReportedBalance !== null) {
+    discHtml = hasDisc
+      ? `<span class="card-disc diff">⚠ Diff ${eur(Math.abs(r.discrepancy))}</span>`
+      : `<span class="card-disc ok">✓ Match</span>`;
+  }
+
+  const statusBadge = !r.isSetup
+    ? `<span class="badge badge-pending">Setup needed</span>`
+    : r.isActive
+      ? `<span class="badge badge-active">Active</span>`
+      : `<span class="badge badge-occasional">Occasional</span>`;
+
+  const balHtml = r.isSetup
+    ? `<div class="card-balance">${eur(r.calculatedBalance)}</div>`
+    : `<div class="card-balance na">Not configured</div>`;
+
+  const creditHtml = r.isSetup && r.creditLimit > 0
+    ? `<div class="card-row"><span class="label" style="font-size:12px;color:var(--muted)">Credit limit</span><span>${eur(r.creditLimit)}</span></div>
+       <div class="card-row"><span class="label" style="font-size:12px;color:var(--muted)">Available</span><span style="font-weight:700;color:${avail < 500 ? 'var(--warning)' : 'var(--success)'}">${eur(avail)}</span></div>`
+    : r.isSetup ? `<div class="card-row" style="font-size:11px;color:var(--muted)">No credit limit</div>` : '';
+
+  const reportedHtml = r.isSetup && r.lastReportedBalance !== null
+    ? `<div class="card-reported">Last reported: <span class="val">${eur(r.lastReportedBalance)}</span> <span style="color:var(--muted);font-size:11px">${fmtDate(r.lastReportedDate)}</span>${discHtml}</div>`
+    : r.isSetup ? `<div class="card-reported" style="color:var(--muted)">No balance update yet</div>` : '';
+
+  return `
+    <div class="route-card status-${status}" onclick="showRoute('${r._id}')">
+      <div class="card-header">
+        <span class="card-name">${r.name}</span>
+        ${statusBadge}
+      </div>
+      <div class="card-body">
+        ${balHtml}
+        ${creditHtml}
+        ${r.isSetup ? '<hr class="card-divider">' : ''}
+        ${reportedHtml}
+      </div>
+      <div class="card-footer">
+        ${r.isSetup ? `💳 Last top-up: ${fmtDate(r.lastTopupDate)} · ${r.currency || 'EUR'}` : 'Click to configure this route'}
+      </div>
+    </div>`;
+}
+
+// ── Route Detail ───────────────────────────────────────────────────────────
+function renderRouteDetail() {
+  const r = S.route;
+  const hasDisc = r.discrepancy !== null && Math.abs(r.discrepancy) > 0.01;
+
+  // Header
+  document.getElementById('route-header').innerHTML = `
+    <div class="route-detail-header">
+      <div>
+        <div class="route-detail-title">${r.name}</div>
+        <div class="route-detail-meta">
+          ${r.isSetup ? `
+            <span>${r.isActive ? '🟢 Active' : '🔵 Occasional'}</span>
+            <span>💶 Currency: ${r.currency || 'EUR'}</span>
+            ${r.creditLimit > 0 ? `<span>💳 Credit: ${eur(r.creditLimit)}</span>` : '<span>No credit limit</span>'}
+            ${r.notes ? `<span>📝 ${r.notes}</span>` : ''}
+          ` : '<span style="color:var(--warning)">⚠ Not configured yet</span>'}
+        </div>
+      </div>
+      <button class="btn-settings" onclick="openSetupModal()">⚙ ${r.isSetup ? 'Edit Settings' : 'Set Up Route'}</button>
+    </div>`;
+
+  // Balance grid
+  if (r.isSetup) {
+    const discClass = hasDisc ? 'disc-warn' : 'disc-ok';
+    const discVal = r.discrepancy !== null
+      ? (hasDisc ? `<span style="color:var(--danger)">⚠ ${eur(r.discrepancy)}</span>` : `<span style="color:var(--success)">✓ Match</span>`)
+      : '—';
+    const avail = (r.calculatedBalance ?? 0) + (r.creditLimit ?? 0);
+
+    document.getElementById('balance-grid').innerHTML = `
+      <div class="balance-box">
+        <div class="label">Calculated Balance</div>
+        <div class="amount" style="color:${(r.calculatedBalance ?? 0) < 0 ? 'var(--danger)' : 'var(--text)'}">${eur(r.calculatedBalance)}</div>
+        <div class="sub">Based on our records</div>
+      </div>
+      <div class="balance-box">
+        <div class="label">Last Reported Balance</div>
+        <div class="amount">${r.lastReportedBalance !== null ? eur(r.lastReportedBalance) : '—'}</div>
+        <div class="sub">${r.lastReportedDate ? fmtDate(r.lastReportedDate) : 'No update logged yet'}</div>
+      </div>
+      <div class="balance-box ${discClass}">
+        <div class="label">Difference</div>
+        <div class="amount">${discVal}</div>
+        <div class="sub">${r.creditLimit > 0 ? `Available (with credit): ${eur(avail)}` : 'Calculated vs. reported'}</div>
+      </div>`;
+  } else {
+    document.getElementById('balance-grid').innerHTML = `
+      <div class="balance-box" style="grid-column:1/-1;text-align:center;padding:32px">
+        <div class="label">Route not configured</div>
+        <p style="color:var(--muted);margin-top:8px">Click "Set Up Route" to add balance, credit limit and payment details.</p>
+      </div>`;
+  }
+
+  // Discrepancy alert
+  let discAlert = '';
+  if (hasDisc) {
+    discAlert = `<div class="disc-alert">
+      <span class="icon">⚠️</span>
+      <div><strong>Discrepancy detected:</strong> Our calculated balance is ${eur(r.calculatedBalance)}, but the last reported balance was ${eur(r.lastReportedBalance)} (${fmtDate(r.lastReportedDate)}). Difference: <strong>${eur(r.discrepancy)}</strong>. Check the event history below.</div>
+    </div>`;
+  }
+
+  // Actions
+  document.getElementById('action-bar').innerHTML = discAlert + `
+    <button class="btn btn-success" onclick="openTopupModal()">+ Top-up</button>
+    <button class="btn btn-warning" onclick="openReportModal()">+ Monthly Report</button>
+    <button class="btn btn-purple" onclick="openBalanceModal()">+ Balance Update</button>
+    <button class="btn btn-outline" onclick="openUploadModal()">📎 Upload Document</button>`;
+
+  renderEvents();
+  renderFiles();
+}
+
+function renderEvents() {
+  const r = S.route;
+  const events = S.events;
+  const el = document.getElementById('tab-events');
+
+  if (events.length === 0) {
+    el.innerHTML = `<div class="empty-state"><div class="icon">📋</div><p>No events logged yet.<br>Start by adding a top-up or monthly report.</p></div>`;
+    return;
+  }
+
+  // Calculate running balances (sort asc, apply, then display desc)
+  const baseline = r.baselineBalance ?? 0;
+  const sorted = [...events].sort((a, b) => new Date(a.date) - new Date(b.date));
+  let bal = baseline;
+  const balMap = {};
+  for (const e of sorted) {
+    if (e.type === 'topup') bal += e.eurAmount || 0;
+    else if (e.type === 'monthly_report') bal -= e.eurAmount || 0;
+    balMap[e._id] = Math.round(bal * 100) / 100;
+  }
+
+  el.innerHTML = `<div class="event-list">` + events.map(e => {
+    const runBal = balMap[e._id];
+    let badge, desc, amountStr;
+
+    if (e.type === 'topup') {
+      badge = `<span class="badge badge-topup">Top-up</span>`;
+      const origStr = (e.originalCurrency && e.originalCurrency !== 'EUR')
+        ? ` (${e.originalAmount?.toLocaleString()} ${e.originalCurrency})`
+        : '';
+      desc = `<span class="event-desc" style="color:var(--success)">+${eur(e.eurAmount)}${origStr}</span>`;
+      amountStr = e.paymentMethod ? `via ${e.paymentMethod}` : '';
+    } else if (e.type === 'monthly_report') {
+      badge = `<span class="badge badge-report">Monthly Report</span>`;
+      const origStr = (e.originalCurrency && e.originalCurrency !== 'EUR')
+        ? ` (${e.originalAmount?.toLocaleString()} ${e.originalCurrency})`
+        : '';
+      desc = `<span class="event-desc" style="color:var(--danger)">-${eur(e.eurAmount)}${origStr}</span>`;
+      amountStr = e.month ? `Spend for ${fmtMonth(e.month)}` : '';
+    } else {
+      badge = `<span class="badge badge-balance">Balance Update</span>`;
+      const origStr = (e.reportedCurrency && e.reportedCurrency !== 'EUR')
+        ? ` (${e.reportedBalance?.toLocaleString()} ${e.reportedCurrency})`
+        : '';
+      desc = `<span class="event-desc">Reported: ${eur(e.reportedBalanceEur)}${origStr}</span>`;
+      amountStr = e.notes || '';
+    }
+
+    const notesStr = e.notes && e.type !== 'balance_update' ? `<span style="margin-left:8px;opacity:.7">${e.notes}</span>` : '';
+
+    return `<div class="event-row">
+      <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-start">
+        ${badge}
+        <span style="font-size:12px;color:var(--muted)">${fmtDate(e.date)}</span>
+      </div>
+      <div class="event-main">
+        ${desc}
+        <div class="event-meta">${amountStr}${notesStr}</div>
+      </div>
+      ${e.type !== 'balance_update' ? `
+      <div class="event-balance">
+        <div class="bal-label">Balance after</div>
+        <div class="bal-val" style="color:${(runBal ?? 0) < 0 ? 'var(--danger)' : 'var(--text)'}">${eur(runBal)}</div>
+      </div>` : '<div></div>'}
+      <div class="event-actions">
+        <button class="btn-del" onclick="deleteEvent('${e._id}')" title="Delete">🗑</button>
+      </div>
+    </div>`;
+  }).join('') + `</div>`;
+}
+
+function renderFiles() {
+  const el = document.getElementById('tab-documents');
+  if (S.files.length === 0) {
+    el.innerHTML = `<div class="empty-state"><div class="icon">📁</div><p>No documents uploaded yet.<br>Upload invoices and monthly reports here.</p></div>`;
+    return;
+  }
+
+  const catLabel = { invoice: 'Invoice', monthly_report: 'Monthly Report', other: 'Document' };
+  el.innerHTML = `<div class="file-list">` + S.files.map(f => `
+    <div class="file-row">
+      <span class="file-icon">${fileIcon(f.mimeType)}</span>
+      <div class="file-info">
+        <div class="file-name">${f.originalName}</div>
+        <div class="file-meta">
+          ${catLabel[f.fileCategory] || 'Document'}
+          ${f.month ? ` · ${fmtMonth(f.month)}` : ''}
+          · ${fmtDate(f.date)}
+          · ${fmtSize(f.size)}
+          ${f.notes ? `· ${f.notes}` : ''}
+        </div>
+      </div>
+      <div class="file-actions">
+        <a href="/api/files/${f._id}" target="_blank" class="btn btn-outline btn-sm">View</a>
+        <a href="/api/files/${f._id}?dl=1" class="btn btn-outline btn-sm">⬇</a>
+        <button class="btn btn-danger btn-sm" onclick="deleteFile('${f._id}')">🗑</button>
+      </div>
+    </div>`).join('') + `</div>`;
+}
+
+// ── Modal helpers ──────────────────────────────────────────────────────────
+function openModal(html) {
+  document.getElementById('modal-content').innerHTML = html;
+  document.getElementById('modal-overlay').classList.remove('hidden');
+}
+function closeModal() {
+  document.getElementById('modal-overlay').classList.add('hidden');
+  document.getElementById('modal-content').innerHTML = '';
+}
+function closeModalOutside(e) {
+  if (e.target === document.getElementById('modal-overlay')) closeModal();
+}
+
+// ── Setup modal ────────────────────────────────────────────────────────────
+function openSetupModal() {
+  const r = S.route;
+  const pm = r.paymentMethods || [];
+  const chk = v => pm.includes(v) ? 'checked' : '';
+  const today = new Date().toISOString().split('T')[0];
+  openModal(`
+    <div class="modal-header">
+      <span class="modal-title">${r.isSetup ? 'Edit' : 'Set Up'} Route: ${r.name}</span>
+      <button class="modal-close" onclick="closeModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Balance Currency</label>
+          <select id="s-currency">
+            <option value="EUR" ${r.currency === 'EUR' || !r.currency ? 'selected' : ''}>EUR</option>
+            <option value="USD" ${r.currency === 'USD' ? 'selected' : ''}>USD</option>
+            <option value="GBP" ${r.currency === 'GBP' ? 'selected' : ''}>GBP</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Credit Limit (EUR)</label>
+          <input type="number" id="s-credit" placeholder="0" value="${r.creditLimit || ''}">
+          <div class="form-hint">Enter 0 if no credit</div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Accepted Payment Methods</label>
+        <div class="checkbox-group">
+          <label class="checkbox-item"><input type="checkbox" value="Bank" ${chk('Bank')}> Bank Transfer</label>
+          <label class="checkbox-item"><input type="checkbox" value="USDT" ${chk('USDT')}> USDT</label>
+          <label class="checkbox-item"><input type="checkbox" value="BTC" ${chk('BTC')}> BTC</label>
+          <label class="checkbox-item"><input type="checkbox" value="ETH" ${chk('ETH')}> ETH</label>
+          <label class="checkbox-item"><input type="checkbox" value="Other" ${chk('Other')}> Other</label>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Usage Frequency</label>
+          <select id="s-active">
+            <option value="true" ${r.isActive !== false ? 'selected' : ''}>Active (every month)</option>
+            <option value="false" ${r.isActive === false ? 'selected' : ''}>Occasional</option>
+          </select>
+        </div>
+      </div>
+      <hr style="border:none;border-top:1px solid var(--border);margin:16px 0">
+      <div style="font-weight:600;margin-bottom:12px;font-size:13px">Baseline Balance <span style="font-weight:400;color:var(--muted)">(starting point for calculations)</span></div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Balance Amount (EUR)</label>
+          <input type="number" id="s-baseline" placeholder="e.g. 5000" value="${r.baselineBalance ?? ''}">
+        </div>
+        <div class="form-group">
+          <label>Balance Date</label>
+          <input type="date" id="s-baseline-date" value="${r.baselineDate ? r.baselineDate.split('T')[0] : today}">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Notes</label>
+        <textarea id="s-notes" placeholder="Any notes about this route...">${r.notes || ''}</textarea>
+      </div>
+      <div id="s-err" class="form-error"></div>
+      <div class="form-actions">
+        <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="submitSetup()">Save Route</button>
+      </div>
+    </div>`);
+}
+
+async function submitSetup() {
+  const baseline = document.getElementById('s-baseline').value;
+  if (baseline === '') { document.getElementById('s-err').textContent = 'Baseline balance is required.'; return; }
+  const pm = [...document.querySelectorAll('.checkbox-item input:checked')].map(c => c.value);
+  try {
+    const updated = await api('PUT', `/api/routes/${S.route._id}`, {
+      currency: document.getElementById('s-currency').value,
+      creditLimit: document.getElementById('s-credit').value || 0,
+      paymentMethods: pm,
+      isActive: document.getElementById('s-active').value === 'true',
+      baselineBalance: parseFloat(baseline),
+      baselineDate: document.getElementById('s-baseline-date').value,
+      notes: document.getElementById('s-notes').value
+    });
+    closeModal();
+    await showRoute(S.route._id);
+  } catch (e) { document.getElementById('s-err').textContent = e.message; }
+}
+
+// ── Top-up modal ───────────────────────────────────────────────────────────
+function openTopupModal() {
+  const today = new Date().toISOString().split('T')[0];
+  const pm = (S.route.paymentMethods || []).map(m => `<option>${m}</option>`).join('');
+  openModal(`
+    <div class="modal-header">
+      <span class="modal-title">Log Top-up — ${S.route.name}</span>
+      <button class="modal-close" onclick="closeModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>Date</label>
+        <input type="date" id="t-date" value="${today}">
+      </div>
+      <div class="form-group">
+        <label>Amount Sent</label>
+        <div class="currency-row">
+          <input type="number" id="t-orig" placeholder="e.g. 500" step="0.01">
+          <select id="t-orig-cur">
+            <option value="EUR">EUR</option>
+            <option value="USDT">USDT</option>
+            <option value="USD">USD</option>
+            <option value="BTC">BTC</option>
+            <option value="ETH">ETH</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>EUR Equivalent</label>
+        <input type="number" id="t-eur" placeholder="Amount in EUR" step="0.01">
+        <div class="form-hint">If payment was in EUR, enter the same amount. For crypto/USD enter the EUR value at time of payment.</div>
+      </div>
+      <div class="form-group">
+        <label>Payment Method</label>
+        <select id="t-method">
+          ${pm || '<option value="Bank">Bank Transfer</option><option value="USDT">USDT</option><option value="BTC">BTC</option>'}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Reference / Notes</label>
+        <input type="text" id="t-notes" placeholder="Transaction ID, bank reference, etc.">
+      </div>
+      <div id="t-err" class="form-error"></div>
+      <div class="form-actions">
+        <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+        <button class="btn btn-success" onclick="submitTopup()">Save Top-up</button>
+      </div>
+    </div>`);
+
+  // Auto-fill EUR field when currency is EUR
+  document.getElementById('t-orig-cur').addEventListener('change', function() {
+    if (this.value === 'EUR') document.getElementById('t-eur').value = document.getElementById('t-orig').value;
+  });
+  document.getElementById('t-orig').addEventListener('input', function() {
+    if (document.getElementById('t-orig-cur').value === 'EUR') document.getElementById('t-eur').value = this.value;
+  });
+}
+
+async function submitTopup() {
+  const origAmount = document.getElementById('t-orig').value;
+  const eurAmount = document.getElementById('t-eur').value;
+  if (!origAmount || !eurAmount) { document.getElementById('t-err').textContent = 'Fill in all required fields.'; return; }
+  try {
+    await api('POST', '/api/events', {
+      routeId: S.route._id,
+      type: 'topup',
+      date: document.getElementById('t-date').value,
+      originalAmount: parseFloat(origAmount),
+      originalCurrency: document.getElementById('t-orig-cur').value,
+      eurAmount: parseFloat(eurAmount),
+      paymentMethod: document.getElementById('t-method').value,
+      notes: document.getElementById('t-notes').value
+    });
+    closeModal();
+    await showRoute(S.route._id);
+  } catch (e) { document.getElementById('t-err').textContent = e.message; }
+}
+
+// ── Monthly Report modal ───────────────────────────────────────────────────
+function openReportModal() {
+  const today = new Date().toISOString().split('T')[0];
+  const routeCur = S.route.currency || 'EUR';
+  const prevMonth = (() => { const d = new Date(); d.setMonth(d.getMonth() - 1); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; })();
+  openModal(`
+    <div class="modal-header">
+      <span class="modal-title">Log Monthly Report — ${S.route.name}</span>
+      <button class="modal-close" onclick="closeModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Report Month</label>
+          <input type="month" id="r-month" value="${prevMonth}">
+        </div>
+        <div class="form-group">
+          <label>Report Received Date</label>
+          <input type="date" id="r-date" value="${today}">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Spend Amount (${routeCur})</label>
+        <div class="currency-row">
+          <input type="number" id="r-orig" placeholder="Total spend this month" step="0.01">
+          <select id="r-orig-cur">
+            <option value="${routeCur}" selected>${routeCur}</option>
+            ${routeCur !== 'EUR' ? '<option value="EUR">EUR</option>' : ''}
+            ${routeCur !== 'USD' ? '<option value="USD">USD</option>' : ''}
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>EUR Equivalent (deducted from balance)</label>
+        <input type="number" id="r-eur" placeholder="Amount in EUR" step="0.01">
+        <div class="form-hint">${routeCur === 'EUR' ? 'Same as spend amount for EUR routes.' : `${S.route.name} reports in ${routeCur} — enter the EUR equivalent manually.`}</div>
+      </div>
+      <div class="form-group">
+        <label>Notes</label>
+        <textarea id="r-notes" placeholder="Any notes about this report..."></textarea>
+      </div>
+      <div id="r-err" class="form-error"></div>
+      <div class="form-actions">
+        <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+        <button class="btn btn-warning" onclick="submitReport()">Save Report</button>
+      </div>
+    </div>`);
+
+  document.getElementById('r-orig').addEventListener('input', function() {
+    if (document.getElementById('r-orig-cur').value === 'EUR') document.getElementById('r-eur').value = this.value;
+  });
+  document.getElementById('r-orig-cur').addEventListener('change', function() {
+    if (this.value === 'EUR') document.getElementById('r-eur').value = document.getElementById('r-orig').value;
+  });
+  if (routeCur === 'EUR') {
+    document.getElementById('r-orig').addEventListener('input', function() { document.getElementById('r-eur').value = this.value; });
+  }
+}
+
+async function submitReport() {
+  const orig = document.getElementById('r-orig').value;
+  const eur_ = document.getElementById('r-eur').value;
+  const month = document.getElementById('r-month').value;
+  if (!orig || !eur_ || !month) { document.getElementById('r-err').textContent = 'Fill in all required fields.'; return; }
+  try {
+    await api('POST', '/api/events', {
+      routeId: S.route._id,
+      type: 'monthly_report',
+      date: document.getElementById('r-date').value,
+      month,
+      originalAmount: parseFloat(orig),
+      originalCurrency: document.getElementById('r-orig-cur').value,
+      eurAmount: parseFloat(eur_),
+      notes: document.getElementById('r-notes').value
+    });
+    closeModal();
+    await showRoute(S.route._id);
+  } catch (e) { document.getElementById('r-err').textContent = e.message; }
+}
+
+// ── Balance Update modal ───────────────────────────────────────────────────
+function openBalanceModal() {
+  const today = new Date().toISOString().split('T')[0];
+  const routeCur = S.route.currency || 'EUR';
+  openModal(`
+    <div class="modal-header">
+      <span class="modal-title">Log Balance Update — ${S.route.name}</span>
+      <button class="modal-close" onclick="closeModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:13px;color:var(--muted);margin-bottom:16px">Record the balance that ${S.route.name} has reported to you. This will be compared against our calculated balance.</p>
+      <div class="form-group">
+        <label>Date Reported</label>
+        <input type="date" id="b-date" value="${today}">
+      </div>
+      <div class="form-group">
+        <label>Reported Balance (${routeCur})</label>
+        <div class="currency-row">
+          <input type="number" id="b-reported" placeholder="Balance as reported" step="0.01">
+          <select id="b-cur">
+            <option value="${routeCur}" selected>${routeCur}</option>
+            ${routeCur !== 'EUR' ? '<option value="EUR">EUR</option>' : ''}
+            ${routeCur !== 'USD' ? '<option value="USD">USD</option>' : ''}
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>EUR Equivalent</label>
+        <input type="number" id="b-eur" placeholder="Amount in EUR" step="0.01">
+        <div class="form-hint">${routeCur === 'EUR' ? 'Same as reported balance.' : `Convert ${routeCur} to EUR manually.`}</div>
+      </div>
+      <div class="form-group">
+        <label>Source / Notes</label>
+        <input type="text" id="b-notes" placeholder="e.g. Via Telegram from John, portal check, email...">
+      </div>
+      <div id="b-err" class="form-error"></div>
+      <div class="form-actions">
+        <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+        <button class="btn btn-purple" onclick="submitBalance()">Save Balance Update</button>
+      </div>
+    </div>`);
+
+  document.getElementById('b-reported').addEventListener('input', function() {
+    if (document.getElementById('b-cur').value === 'EUR') document.getElementById('b-eur').value = this.value;
+  });
+  document.getElementById('b-cur').addEventListener('change', function() {
+    if (this.value === 'EUR') document.getElementById('b-eur').value = document.getElementById('b-reported').value;
+  });
+  if (routeCur === 'EUR') {
+    document.getElementById('b-reported').addEventListener('input', function() { document.getElementById('b-eur').value = this.value; });
+  }
+}
+
+async function submitBalance() {
+  const reported = document.getElementById('b-reported').value;
+  const eur_ = document.getElementById('b-eur').value;
+  if (!reported || !eur_) { document.getElementById('b-err').textContent = 'Fill in all required fields.'; return; }
+  try {
+    await api('POST', '/api/events', {
+      routeId: S.route._id,
+      type: 'balance_update',
+      date: document.getElementById('b-date').value,
+      reportedBalance: parseFloat(reported),
+      reportedCurrency: document.getElementById('b-cur').value,
+      reportedBalanceEur: parseFloat(eur_),
+      eurAmount: 0,
+      notes: document.getElementById('b-notes').value
+    });
+    closeModal();
+    await showRoute(S.route._id);
+  } catch (e) { document.getElementById('b-err').textContent = e.message; }
+}
+
+// ── Upload modal ───────────────────────────────────────────────────────────
+function openUploadModal() {
+  const today = new Date().toISOString().split('T')[0];
+  const prevMonth = (() => { const d = new Date(); d.setMonth(d.getMonth()-1); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; })();
+  openModal(`
+    <div class="modal-header">
+      <span class="modal-title">Upload Document — ${S.route.name}</span>
+      <button class="modal-close" onclick="closeModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>File</label>
+        <input type="file" id="u-file" accept=".pdf,.jpg,.jpeg,.png,.xls,.xlsx,.csv">
+        <div class="form-hint">PDF, images, Excel up to 15 MB</div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Document Type</label>
+          <select id="u-cat" onchange="toggleMonthField()">
+            <option value="monthly_report">Monthly Report</option>
+            <option value="invoice">Invoice</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        <div class="form-group" id="u-month-group">
+          <label>Month</label>
+          <input type="month" id="u-month" value="${prevMonth}">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Document Date</label>
+        <input type="date" id="u-date" value="${today}">
+      </div>
+      <div class="form-group">
+        <label>Notes</label>
+        <input type="text" id="u-notes" placeholder="Optional notes">
+      </div>
+      <div id="u-err" class="form-error"></div>
+      <div class="form-actions">
+        <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="submitUpload()">Upload</button>
+      </div>
+    </div>`);
+}
+
+function toggleMonthField() {
+  const cat = document.getElementById('u-cat').value;
+  document.getElementById('u-month-group').style.display = cat === 'monthly_report' ? '' : 'none';
+}
+
+async function submitUpload() {
+  const fileInput = document.getElementById('u-file');
+  if (!fileInput.files.length) { document.getElementById('u-err').textContent = 'Please select a file.'; return; }
+  const cat = document.getElementById('u-cat').value;
+  const fd = new FormData();
+  fd.append('file', fileInput.files[0]);
+  fd.append('fileCategory', cat);
+  fd.append('date', document.getElementById('u-date').value);
+  fd.append('notes', document.getElementById('u-notes').value);
+  if (cat === 'monthly_report') fd.append('month', document.getElementById('u-month').value);
+
+  const btn = document.querySelector('#modal-content .btn-primary');
+  btn.textContent = 'Uploading...';
+  btn.disabled = true;
+
+  try {
+    await apiForm(`/api/routes/${S.route._id}/files`, fd);
+    closeModal();
+    S.files = await api('GET', `/api/routes/${S.route._id}/files`);
+    renderFiles();
+    switchTab('documents');
+  } catch (e) {
+    document.getElementById('u-err').textContent = e.message;
+    btn.textContent = 'Upload';
+    btn.disabled = false;
+  }
+}
+
+// ── Delete handlers ────────────────────────────────────────────────────────
+async function deleteEvent(id) {
+  if (!confirm('Delete this event? This will affect the calculated balance.')) return;
+  await api('DELETE', `/api/events/${id}`);
+  await showRoute(S.route._id);
+}
+
+async function deleteFile(id) {
+  if (!confirm('Delete this document?')) return;
+  await api('DELETE', `/api/files/${id}`);
+  S.files = await api('GET', `/api/routes/${S.route._id}/files`);
+  renderFiles();
+}
+
+// ── Init ───────────────────────────────────────────────────────────────────
+window.onload = () => {
+  if (S.token) {
+    document.getElementById('login-screen').classList.add('hidden');
+    document.getElementById('app').classList.remove('hidden');
+    showDashboard();
+  }
+};
+</script>
+</body>
+</html>
