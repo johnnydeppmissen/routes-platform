@@ -159,6 +159,17 @@ app.delete('/api/events/:id', requireAuth, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+app.post('/api/routes/:id/reset', requireAuth, async (req, res) => {
+  try {
+    await db.collection('routes').updateOne(
+      { _id: new ObjectId(req.params.id) },
+      { $unset: { currency: '', creditLimit: '', paymentMethods: '', isActive: '', baselineBalance: '', baselineDate: '', notes: '' },
+        $set: { isSetup: false, updatedAt: new Date() } }
+    );
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // ── Files ─────────────────────────────────────────────────────────────────────
 
 app.get('/api/routes/:id/files', requireAuth, async (req, res) => {

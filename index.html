@@ -567,7 +567,7 @@ function renderEvents() {
         <div class="bal-val" style="color:${(runBal ?? 0) < 0 ? 'var(--danger)' : 'var(--text)'}">${eur(runBal)}</div>
       </div>` : '<div></div>'}
       <div class="event-actions">
-        <button class="btn-del" onclick="deleteEvent('${e._id}')" title="Delete">🗑</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteEvent('${e._id}')">Delete</button>
       </div>
     </div>`;
   }).join('') + `</div>`;
@@ -679,6 +679,7 @@ function openSetupModal() {
       </div>
       <div id="s-err" class="form-error"></div>
       <div class="form-actions">
+        ${r.isSetup ? `<button class="btn btn-danger" style="margin-right:auto" onclick="resetRoute()">Reset Route</button>` : ''}
         <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
         <button class="btn btn-primary" onclick="submitSetup()">Save Route</button>
       </div>
@@ -702,6 +703,13 @@ async function submitSetup() {
     closeModal();
     await showRoute(S.route._id);
   } catch (e) { document.getElementById('s-err').textContent = e.message; }
+}
+
+async function resetRoute() {
+  if (!confirm(`Reset ${S.route.name}? This clears all settings (balance, credit limit etc.) but keeps the event history.`)) return;
+  await api('POST', `/api/routes/${S.route._id}/reset`);
+  closeModal();
+  await showRoute(S.route._id);
 }
 
 // ── Top-up modal ───────────────────────────────────────────────────────────
