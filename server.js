@@ -29,15 +29,65 @@ function requireAuth(req, res, next) {
 
 async function calculateBalance(routeId) {
   const route = await db.collection('routes').findOne({ _id: new ObjectId(routeId) });
-  if (!route || route.baselineBalance == null) return null;
+  if (!route) return null;
   const events = await db.collection('events')
     .find({ routeId: new ObjectId(routeId) })
     .sort({ date: 1 })
     .toArray();
+
+  // Use the most recent balance_update as the anchor (confirmed by the route)
+  // Only top-ups after that anchor affect the calculated balance.
+  // Monthly reports are stored for reference/reconciliation but do NOT change the calculation.
+  const lastConfirmed = [...events].reverse().find(e => e.type === 'balance_update');
+  if (lastConfirmed) {
+    let bal = lastConfirmed.reportedBalanceEur || 0;
+    for (const e of events) {
+      if (new Date(e.date) > new Date(lastConfirmed.date) && e.type === 'topup') {
+        bal += e.eurAmount || 0;
+      }
+    }
+    return Math.round(bal * 100) / 100;
+  }
+
+  // No balance updates yet — fall back to baseline + top-ups only
+  if (route.baselineBalance == null) return null;
+  const baselineDate = route.baselineDate ? new Date(route.baselineDate) : new Date(0);
   let bal = route.baselineBalance;
   for (const e of events) {
-    if (e.type === 'topup') bal += e.eurAmount || 0;
-    else if (e.type === 'monthly_report') bal -= e.eurAmount || 0;
+    if (new Date(e.date) > baselineDate && e.type === 'topup') {
+      bal += e.eurAmount || 0;
+    }
+  }
+  return Math.round(bal * 100) / 100;
+}
+
+// Calculate what the balance SHOULD have been at a given date.
+// Used to verify balance updates: expected vs what the route reported.
+function calcExpectedAtDate(route, events, targetDate, excludeId) {
+  const tgt = new Date(targetDate).getTime();
+  const prevConfirmed = [...events]
+    .filter(e => e.type === 'balance_update' &&
+                 new Date(e.date).getTime() < tgt &&
+                 e._id.toString() !== (excludeId || '').toString())
+    .pop();
+
+  let anchor, anchorTime;
+  if (prevConfirmed) {
+    anchor = prevConfirmed.reportedBalanceEur || 0;
+    anchorTime = new Date(prevConfirmed.date).getTime();
+  } else if (route.baselineBalance != null) {
+    anchor = route.baselineBalance;
+    anchorTime = route.baselineDate ? new Date(route.baselineDate).getTime() : 0;
+  } else {
+    return null;
+  }
+
+  let bal = anchor;
+  for (const e of events) {
+    const t = new Date(e.date).getTime();
+    if (t > anchorTime && t <= tgt && e.type === 'topup') {
+      bal += e.eurAmount || 0;
+    }
   }
   return Math.round(bal * 100) / 100;
 }
@@ -58,16 +108,17 @@ app.get('/api/routes', requireAuth, async (req, res) => {
   try {
     const routes = await db.collection('routes').find().sort({ name: 1 }).toArray();
     const result = await Promise.all(routes.map(async r => {
+      const events = await db.collection('events')
+        .find({ routeId: r._id }).sort({ date: 1 }).toArray();
       const calc = await calculateBalance(r._id);
-      const lastUpdate = await db.collection('events').findOne(
-        { routeId: r._id, type: 'balance_update' }, { sort: { date: -1 } }
-      );
-      const lastTopup = await db.collection('events').findOne(
-        { routeId: r._id, type: 'topup' }, { sort: { date: -1 } }
-      );
-      const discrepancy = (calc !== null && lastUpdate)
-        ? Math.round((calc - lastUpdate.reportedBalanceEur) * 100) / 100
-        : null;
+      const lastUpdate = [...events].reverse().find(e => e.type === 'balance_update');
+      const lastTopup = [...events].reverse().find(e => e.type === 'topup');
+      // Discrepancy: what we expected vs what the route reported at the time of last balance update
+      let discrepancy = null;
+      if (lastUpdate) {
+        const expected = calcExpectedAtDate(r, events, lastUpdate.date, lastUpdate._id);
+        if (expected !== null) discrepancy = Math.round((expected - (lastUpdate.reportedBalanceEur || 0)) * 100) / 100;
+      }
       return {
         ...r,
         calculatedBalance: calc,
@@ -85,13 +136,15 @@ app.get('/api/routes/:id', requireAuth, async (req, res) => {
   try {
     const r = await db.collection('routes').findOne({ _id: new ObjectId(req.params.id) });
     if (!r) return res.status(404).json({ error: 'Not found' });
+    const events = await db.collection('events')
+      .find({ routeId: r._id }).sort({ date: 1 }).toArray();
     const calc = await calculateBalance(r._id);
-    const lastUpdate = await db.collection('events').findOne(
-      { routeId: r._id, type: 'balance_update' }, { sort: { date: -1 } }
-    );
-    const discrepancy = (calc !== null && lastUpdate)
-      ? Math.round((calc - lastUpdate.reportedBalanceEur) * 100) / 100
-      : null;
+    const lastUpdate = [...events].reverse().find(e => e.type === 'balance_update');
+    let discrepancy = null;
+    if (lastUpdate) {
+      const expected = calcExpectedAtDate(r, events, lastUpdate.date, lastUpdate._id);
+      if (expected !== null) discrepancy = Math.round((expected - (lastUpdate.reportedBalanceEur || 0)) * 100) / 100;
+    }
     res.json({
       ...r,
       calculatedBalance: calc,
@@ -127,11 +180,26 @@ app.put('/api/routes/:id', requireAuth, async (req, res) => {
 
 app.get('/api/routes/:id/events', requireAuth, async (req, res) => {
   try {
+    const route = await db.collection('routes').findOne({ _id: new ObjectId(req.params.id) });
     const events = await db.collection('events')
       .find({ routeId: new ObjectId(req.params.id) })
-      .sort({ date: -1 })
+      .sort({ date: 1 })
       .toArray();
-    res.json(events);
+    // Enrich balance_update events with expected balance and discrepancy at the time they were logged
+    const enriched = events.map(e => {
+      if (e.type === 'balance_update') {
+        const expected = calcExpectedAtDate(route, events, e.date, e._id);
+        return {
+          ...e,
+          expectedAtTime: expected,
+          discrepancyAtTime: expected !== null
+            ? Math.round((expected - (e.reportedBalanceEur || 0)) * 100) / 100
+            : null
+        };
+      }
+      return e;
+    });
+    res.json(enriched.reverse()); // newest first for display
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
