@@ -566,22 +566,17 @@ function renderEvents() {
       }
 
     } else {
-      // Balance update — show verification check
+      // Balance update — show confirmed balance + change since last (informational only)
       badge = `<span class="badge badge-balance">Balance Update</span>`;
-      desc = `<span class="event-desc">Reported: <strong>${eur(e.reportedBalanceEur)}</strong></span>`;
+      desc = `<span class="event-desc">Confirmed: <strong>${eur(e.reportedBalanceEur)}</strong></span>`;
       amountStr = e.notes || '';
 
-      if (e.expectedAtTime !== null && e.expectedAtTime !== undefined) {
-        const diff = e.discrepancyAtTime ?? 0;
-        const absDiff = Math.abs(diff);
-        const isOk = absDiff < 0.01;
-        const color = isOk ? 'var(--success)' : 'var(--danger)';
-        const sign = diff > 0 ? '+' : diff < 0 ? '-' : '';
-        rightCol = `<div class="event-balance" style="min-width:200px">
-          <div class="bal-label">Expected: ${eur(e.expectedAtTime)}</div>
-          <div class="bal-val" style="color:${color};font-size:13px">
-            ${isOk ? '✅ Correct' : `⚠️ Discrepancy: ${sign}${eur(absDiff)}`}
-          </div>
+      if (e.changeFromPrevious !== null && e.changeFromPrevious !== undefined) {
+        const sign = e.changeFromPrevious >= 0 ? '+' : '';
+        const color = e.changeFromPrevious >= 0 ? 'var(--success)' : 'var(--muted)';
+        rightCol = `<div class="event-balance">
+          <div class="bal-label">Change since last update</div>
+          <div class="bal-val" style="color:${color};font-size:13px">${sign}${eur(e.changeFromPrevious)}</div>
         </div>`;
       } else {
         rightCol = `<div class="event-balance"><div class="bal-label">First confirmed balance</div><div class="bal-val">${eur(e.reportedBalanceEur)}</div></div>`;

@@ -160,12 +160,13 @@ app.get('/api/routes', requireAuth, async (req, res) => {
         .find({ routeId: r._id }).sort({ date: 1 }).toArray();
       const calc = await calculateBalance(r._id);
       const lastUpdate = [...events].reverse().find(e => e.type === 'balance_update');
-      const lastTopup = [...events].reverse().find(e => e.type === 'topup');
-      // Discrepancy: what we expected vs what the route reported at the time of last balance update
+      const lastTopup  = [...events].reverse().find(e => e.type === 'topup');
+      // Discrepancy only comes from monthly reconciliation — NOT from balance updates
+      const lastReport = [...events].reverse().find(e => e.type === 'monthly_report' && e.month);
       let discrepancy = null;
-      if (lastUpdate) {
-        const expected = calcExpectedAtDate(r, events, lastUpdate.date, lastUpdate._id);
-        if (expected !== null) discrepancy = Math.round((expected - (lastUpdate.reportedBalanceEur || 0)) * 100) / 100;
+      if (lastReport) {
+        const recon = calcReconciliation(events, lastReport);
+        if (recon && !recon.isReconciled) discrepancy = recon.diff;
       }
       return {
         ...r,
@@ -188,10 +189,11 @@ app.get('/api/routes/:id', requireAuth, async (req, res) => {
       .find({ routeId: r._id }).sort({ date: 1 }).toArray();
     const calc = await calculateBalance(r._id);
     const lastUpdate = [...events].reverse().find(e => e.type === 'balance_update');
+    const lastReport = [...events].reverse().find(e => e.type === 'monthly_report' && e.month);
     let discrepancy = null;
-    if (lastUpdate) {
-      const expected = calcExpectedAtDate(r, events, lastUpdate.date, lastUpdate._id);
-      if (expected !== null) discrepancy = Math.round((expected - (lastUpdate.reportedBalanceEur || 0)) * 100) / 100;
+    if (lastReport) {
+      const recon = calcReconciliation(events, lastReport);
+      if (recon && !recon.isReconciled) discrepancy = recon.diff;
     }
     res.json({
       ...r,
@@ -233,17 +235,17 @@ app.get('/api/routes/:id/events', requireAuth, async (req, res) => {
       .find({ routeId: new ObjectId(req.params.id) })
       .sort({ date: 1 })
       .toArray();
-    // Enrich events with verification data
+    // Enrich events with useful context
     const enriched = events.map(e => {
       if (e.type === 'balance_update') {
-        const expected = calcExpectedAtDate(route, events, e.date, e._id);
-        return {
-          ...e,
-          expectedAtTime: expected,
-          discrepancyAtTime: expected !== null
-            ? Math.round((expected - (e.reportedBalanceEur || 0)) * 100) / 100
-            : null
-        };
+        // Show change since previous balance update (informational only — not a discrepancy)
+        const prevUpdate = [...events]
+          .filter(ev => ev.type === 'balance_update' && new Date(ev.date) < new Date(e.date))
+          .pop();
+        const changeFromPrevious = prevUpdate
+          ? Math.round(((e.reportedBalanceEur || 0) - (prevUpdate.reportedBalanceEur || 0)) * 100) / 100
+          : null;
+        return { ...e, changeFromPrevious };
       }
       if (e.type === 'monthly_report') {
         const recon = calcReconciliation(events, e);
