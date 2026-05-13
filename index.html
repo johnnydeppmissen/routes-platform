@@ -189,6 +189,13 @@ textarea { resize: vertical; min-height: 72px; }
 .currency-row input { flex: 2; }
 .currency-row select { flex: 1; }
 
+/* ── Reconciliation box ── */
+.recon-box { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; min-width: 280px; font-size: 12px; }
+.recon-title { font-weight: 700; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 8px; }
+.recon-row { display: flex; justify-content: space-between; gap: 16px; padding: 2px 0; color: var(--text); }
+.recon-implied { border-top: 1px solid var(--border); margin-top: 4px; padding-top: 6px; font-weight: 600; }
+.recon-result { margin-top: 8px; font-weight: 700; font-size: 13px; text-align: right; }
+
 /* ── Folders ── */
 .folder-section { margin-bottom: 24px; }
 .folder-header { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); margin-bottom: 8px; border-left: 4px solid var(--primary); }
@@ -539,7 +546,24 @@ function renderEvents() {
         : '';
       desc = `<span class="event-desc" style="color:var(--danger)">${eur(e.eurAmount)}${origStr}</span>`;
       amountStr = e.month ? `Spend for ${fmtMonth(e.month)}` : '';
-      rightCol = `<div class="event-balance"><div class="bal-label">Spend (reference)</div><div class="bal-val" style="color:var(--muted)">${eur(e.eurAmount)}</div></div>`;
+
+      if (e.reconciliation) {
+        const rc = e.reconciliation;
+        const color = rc.isReconciled ? 'var(--success)' : 'var(--danger)';
+        const icon  = rc.isReconciled ? '✅' : '⚠️';
+        const diffStr = rc.isReconciled ? 'Match' : `Discrepancy: ${rc.diff > 0 ? '+' : ''}${eur(rc.diff)}`;
+        rightCol = `<div class="recon-box">
+          <div class="recon-title">Monthly Reconciliation</div>
+          <div class="recon-row"><span>Start balance (${fmtDate(rc.startDate)})</span><span>${eur(rc.startBalance)}</span></div>
+          <div class="recon-row"><span>+ Top-ups in period</span><span style="color:var(--success)">+${eur(rc.topupsTotal)}</span></div>
+          <div class="recon-row"><span>− End balance (${fmtDate(rc.endDate)})</span><span style="color:var(--danger)">−${eur(rc.endBalance)}</span></div>
+          <div class="recon-row recon-implied"><span>= Implied spend</span><span>${eur(rc.impliedSpend)}</span></div>
+          <div class="recon-row"><span>Reported spend</span><span>${eur(rc.reportedSpend)}</span></div>
+          <div class="recon-result" style="color:${color}">${icon} ${diffStr}</div>
+        </div>`;
+      } else {
+        rightCol = `<div class="event-balance"><div class="bal-label">Spend (reference)</div><div class="bal-val" style="color:var(--muted)">${eur(e.eurAmount)}</div><div style="font-size:11px;color:var(--muted);margin-top:4px">Add balance updates on 1st of month to enable reconciliation</div></div>`;
+      }
 
     } else {
       // Balance update — show verification check

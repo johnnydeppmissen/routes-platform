@@ -61,6 +61,54 @@ async function calculateBalance(routeId) {
   return Math.round(bal * 100) / 100;
 }
 
+// Reconciliation: for a monthly report event, find the two balance updates
+// that bracket that month and calculate implied spend vs reported spend.
+// Implied spend = start_balance + top-ups_in_period - end_balance
+function calcReconciliation(events, reportEvent) {
+  if (!reportEvent.month) return null;
+  const [year, month] = reportEvent.month.split('-').map(Number);
+  const monthStart = new Date(year, month - 1, 1);
+  const monthEnd   = new Date(year, month, 1);       // first day of NEXT month
+
+  const balUpdates = events
+    .filter(e => e.type === 'balance_update')
+    .sort((a, b) => new Date(a.date) - new Date(b.date));
+
+  // Start: most recent balance update at or before the last day of this month
+  const startUpdate = [...balUpdates]
+    .filter(e => new Date(e.date) < monthEnd)
+    .pop();
+
+  // End: first balance update on or after the first day of next month
+  const endUpdate = balUpdates
+    .find(e => new Date(e.date) >= monthEnd);
+
+  if (!startUpdate || !endUpdate) return null;
+
+  // Top-ups strictly between startUpdate and endUpdate dates
+  const topupsTotal = events
+    .filter(e => e.type === 'topup' &&
+                 new Date(e.date) > new Date(startUpdate.date) &&
+                 new Date(e.date) <= new Date(endUpdate.date))
+    .reduce((sum, e) => sum + (e.eurAmount || 0), 0);
+
+  const impliedSpend  = Math.round((startUpdate.reportedBalanceEur + topupsTotal - endUpdate.reportedBalanceEur) * 100) / 100;
+  const reportedSpend = Math.round((reportEvent.eurAmount || 0) * 100) / 100;
+  const diff          = Math.round((impliedSpend - reportedSpend) * 100) / 100;
+
+  return {
+    startBalance:  startUpdate.reportedBalanceEur,
+    startDate:     startUpdate.date,
+    endBalance:    endUpdate.reportedBalanceEur,
+    endDate:       endUpdate.date,
+    topupsTotal:   Math.round(topupsTotal * 100) / 100,
+    impliedSpend,
+    reportedSpend,
+    diff,
+    isReconciled: Math.abs(diff) < 1   // within €1 tolerance
+  };
+}
+
 // Calculate what the balance SHOULD have been at a given date.
 // Used to verify balance updates: expected vs what the route reported.
 function calcExpectedAtDate(route, events, targetDate, excludeId) {
@@ -185,7 +233,7 @@ app.get('/api/routes/:id/events', requireAuth, async (req, res) => {
       .find({ routeId: new ObjectId(req.params.id) })
       .sort({ date: 1 })
       .toArray();
-    // Enrich balance_update events with expected balance and discrepancy at the time they were logged
+    // Enrich events with verification data
     const enriched = events.map(e => {
       if (e.type === 'balance_update') {
         const expected = calcExpectedAtDate(route, events, e.date, e._id);
@@ -196,6 +244,10 @@ app.get('/api/routes/:id/events', requireAuth, async (req, res) => {
             ? Math.round((expected - (e.reportedBalanceEur || 0)) * 100) / 100
             : null
         };
+      }
+      if (e.type === 'monthly_report') {
+        const recon = calcReconciliation(events, e);
+        return { ...e, reconciliation: recon };
       }
       return e;
     });
